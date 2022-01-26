@@ -6,9 +6,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>pubtools.pulplib._impl.client.client &#8212; pubtools-pulplib  documentation</title>
-    <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../../../../../_static/alabaster.css" type="text/css" />
-    <script id="documentation_options" data-url_root="../../../../../" src="../../../../../_static/documentation_options.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/alabaster.css" />
+    <script data-url_root="../../../../../" id="documentation_options" src="../../../../../_static/documentation_options.js"></script>
     <script src="../../../../../_static/jquery.js"></script>
     <script src="../../../../../_static/underscore.js"></script>
     <script src="../../../../../_static/doctools.js"></script>
@@ -31,22 +31,22 @@
           <div class="body" role="main">
             
   <h1>Source code for pubtools.pulplib._impl.client.client</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">import</span> <span class="nn">threading</span>
-<span class="kn">import</span> <span class="nn">hashlib</span>
+<span></span><span class="kn">import</span> <span class="nn">hashlib</span>
 <span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">threading</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
-<span class="kn">import</span> <span class="nn">six</span>
-<span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="n">StringIO</span>
 
 <span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">six</span>
 <span class="kn">from</span> <span class="nn">more_executors</span> <span class="kn">import</span> <span class="n">Executors</span>
 <span class="kn">from</span> <span class="nn">more_executors.futures</span> <span class="kn">import</span> <span class="n">f_map</span><span class="p">,</span> <span class="n">f_flat_map</span><span class="p">,</span> <span class="n">f_return</span><span class="p">,</span> <span class="n">f_proxy</span><span class="p">,</span> <span class="n">f_sequence</span>
+<span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="n">StringIO</span>
 
 <span class="kn">from</span> <span class="nn">..page</span> <span class="kn">import</span> <span class="n">Page</span>
 <span class="kn">from</span> <span class="nn">..criteria</span> <span class="kn">import</span> <span class="n">Criteria</span>
-<span class="kn">from</span> <span class="nn">..model</span> <span class="kn">import</span> <span class="n">Repository</span><span class="p">,</span> <span class="n">MaintenanceReport</span><span class="p">,</span> <span class="n">Distributor</span><span class="p">,</span> <span class="n">Unit</span>
+<span class="kn">from</span> <span class="nn">..model</span> <span class="kn">import</span> <span class="n">Repository</span><span class="p">,</span> <span class="n">MaintenanceReport</span><span class="p">,</span> <span class="n">Distributor</span><span class="p">,</span> <span class="n">Unit</span><span class="p">,</span> <span class="n">Task</span>
 <span class="kn">from</span> <span class="nn">.search</span> <span class="kn">import</span> <span class="n">search_for_criteria</span>
 <span class="kn">from</span> <span class="nn">.errors</span> <span class="kn">import</span> <span class="n">PulpException</span>
 <span class="kn">from</span> <span class="nn">.poller</span> <span class="kn">import</span> <span class="n">TaskPoller</span>
@@ -73,6 +73,21 @@
 
 <span class="sd">    If a future is currently awaiting one or more Pulp tasks, cancelling the future</span>
 <span class="sd">    will attempt to cancel those tasks.</span>
+
+<span class="sd">    **Client lifecycle:**</span>
+
+<span class="sd">    .. versionadded:: 2.12.0</span>
+
+<span class="sd">    Client instances support the context manager protocol and can be used</span>
+<span class="sd">    via a ``with`` statement, as in example:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        with Client(url=&quot;https://pulp.example.com/&quot;) as client:</span>
+<span class="sd">            do_something_with(client)</span>
+
+<span class="sd">    While not mandatory, it is encouraged to ensure that any threads associated with</span>
+<span class="sd">    the client are promptly shut down.</span>
 
 <span class="sd">    **Proxy futures:**</span>
 
@@ -136,6 +151,11 @@
 <span class="sd">            str url</span>
 <span class="sd">                URL of a Pulp server, e.g. https://pulp.example.com/.</span>
 
+<span class="sd">            int task_throttle</span>
+<span class="sd">                Maximum number of queued or running tasks permitted for this client.</span>
+<span class="sd">                If more than this number of tasks are running, the client will wait before triggering more.</span>
+<span class="sd">                This can be used to ensure no single client overwhelms the Pulp server.</span>
+
 <span class="sd">            object auth, cert, headers, max_redirects, params, proxies, verify</span>
 <span class="sd">                Any of these arguments, if provided, are used to initialize</span>
 <span class="sd">                :class:`requests.Session` objects used by the client.</span>
@@ -161,6 +181,8 @@
             <span class="k">if</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_session_kwargs</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
 
+        <span class="n">_task_throttle</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;task_throttle&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_TASK_THROTTLE</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
                 <span class="s2">&quot;Unexpected keyword argument(s) </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -168,12 +190,17 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_tls</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">local</span><span class="p">()</span>
 
+        <span class="c1"># Cache supported types, used during searches.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_server_type_ids</span> <span class="o">=</span> <span class="kc">None</span>
+
         <span class="c1"># executor only for issuing HTTP requests to Pulp:</span>
         <span class="c1"># - does not cover watching Pulp tasks</span>
         <span class="c1"># - checks HTTP response and raises if it&#39;s not JSON or</span>
         <span class="c1">#   it&#39;s not successful</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_request_executor</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">Executors</span><span class="o">.</span><span class="n">thread_pool</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_REQUEST_THREADS</span><span class="p">)</span>
+            <span class="n">Executors</span><span class="o">.</span><span class="n">thread_pool</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;pubtools-pulplib-requests&quot;</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_REQUEST_THREADS</span>
+            <span class="p">)</span>
             <span class="o">.</span><span class="n">with_map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_unpack_response</span><span class="p">)</span>
             <span class="o">.</span><span class="n">with_retry</span><span class="p">(</span><span class="n">retry_policy</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_RETRY_POLICY</span><span class="p">)</span>
         <span class="p">)</span>
@@ -187,13 +214,22 @@
         <span class="c1"># - throttles number of tasks pending</span>
         <span class="n">poller</span> <span class="o">=</span> <span class="n">TaskPoller</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_session</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_url</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_task_executor</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">Executors</span><span class="o">.</span><span class="n">thread_pool</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_REQUEST_THREADS</span><span class="p">)</span>
+            <span class="n">Executors</span><span class="o">.</span><span class="n">thread_pool</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;pubtools-pulplib-tasks&quot;</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_REQUEST_THREADS</span>
+            <span class="p">)</span>
             <span class="o">.</span><span class="n">with_map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_unpack_response</span><span class="p">)</span>
             <span class="o">.</span><span class="n">with_map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_log_spawned_tasks</span><span class="p">)</span>
             <span class="o">.</span><span class="n">with_poll</span><span class="p">(</span><span class="n">poller</span><span class="p">,</span> <span class="n">cancel_fn</span><span class="o">=</span><span class="n">poller</span><span class="o">.</span><span class="n">cancel</span><span class="p">)</span>
-            <span class="o">.</span><span class="n">with_throttle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_TASK_THROTTLE</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">with_throttle</span><span class="p">(</span><span class="n">_task_throttle</span><span class="p">)</span>
             <span class="o">.</span><span class="n">with_retry</span><span class="p">(</span><span class="n">retry_policy</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_RETRY_POLICY</span><span class="p">)</span>
         <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_request_executor</span><span class="o">.</span><span class="fm">__exit__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_task_executor</span><span class="o">.</span><span class="fm">__exit__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
 <div class="viewcode-block" id="Client.get_repository"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.Client.get_repository">[docs]</a>    <span class="k">def</span> <span class="nf">get_repository</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">repository_id</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Get a repository by ID.</span>
@@ -253,8 +289,95 @@
 
 <span class="sd">        .. versionadded:: 2.6.0</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Criteria will be serialized into a Pulp search at the time we</span>
+        <span class="c1"># actually do the query, but validate eagerly as well so we raise</span>
+        <span class="c1"># ASAP on invalid input.</span>
+        <span class="n">search_for_criteria</span><span class="p">(</span><span class="n">criteria</span><span class="p">,</span> <span class="n">Unit</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 
-        <span class="n">server_type_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_content_type_ids</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_server_type_ids</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># We&#39;ll be using this in a moment either to set default IDs or to</span>
+            <span class="c1"># reject searches for invalid types.</span>
+            <span class="c1"># Note: no locking, so if we&#39;re called from multiple threads we in</span>
+            <span class="c1"># theory might waste some time querying the types more than once.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_server_type_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_content_type_ids</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">f_proxy</span><span class="p">(</span>
+            <span class="n">f_flat_map</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_server_type_ids</span><span class="p">,</span>
+                <span class="k">lambda</span> <span class="n">ids</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_search_content_with_server_type_ids</span><span class="p">(</span><span class="n">criteria</span><span class="p">,</span> <span class="n">ids</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Client.copy_content"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.Client.copy_content">[docs]</a>    <span class="k">def</span> <span class="nf">copy_content</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">from_repository</span><span class="p">,</span> <span class="n">to_repository</span><span class="p">,</span> <span class="n">criteria</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Copy content from one repository to another.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            from_repository (:class:`~pubtools.pulplib.Repository`)</span>
+<span class="sd">                A repository used as the source of content.</span>
+
+<span class="sd">            to_repository (:class:`~pubtools.pulplib.Repository`)</span>
+<span class="sd">                A repository to receive copied content.</span>
+
+<span class="sd">            criteria (:class:`~pubtools.pulplib.Criteria`)</span>
+<span class="sd">                A criteria object used to find units for copy.</span>
+<span class="sd">                If None, all units in the source repo will be copied.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Future[list[:class:`~pubtools.pulplib.Task`]]</span>
+<span class="sd">                A future which is resolved when the copy completes.</span>
+
+<span class="sd">                The :meth:`~pubtools.pulplib.Task.units` attribute may be inspected</span>
+<span class="sd">                to determine which unit(s) were copied. Note that the returned units</span>
+<span class="sd">                typically will have only a subset of available fields.</span>
+
+<span class="sd">        .. versionadded:: 2.17.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">f_proxy</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_do_associate</span><span class="p">(</span><span class="n">from_repository</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">to_repository</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">criteria</span><span class="p">)</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Client.update_content"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.Client.update_content">[docs]</a>    <span class="k">def</span> <span class="nf">update_content</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unit</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Update mutable fields on an existing unit.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            unit (:class:`~pubtools.pulplib.Unit`)</span>
+<span class="sd">                A unit to be updated.</span>
+
+<span class="sd">                This unit must have a known ``unit_id``.</span>
+
+<span class="sd">                Only those fields documented as *mutable* will have any effect during</span>
+<span class="sd">                the update (e.g. ``cdn_path``). Other fields either cannot be updated</span>
+<span class="sd">                at all, or can only be updated by re-uploading the associated content.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Future</span>
+<span class="sd">                A future which is resolved with a value of ``None`` once the unit</span>
+<span class="sd">                has been updated.</span>
+
+<span class="sd">        .. versionadded:: 2.20.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">unit</span><span class="o">.</span><span class="n">unit_id</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;unit_id missing on call to update_content()&quot;</span><span class="p">)</span>
+
+        <span class="n">url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_url</span><span class="p">,</span>
+            <span class="s2">&quot;pulp/api/v2/content/units/</span><span class="si">%s</span><span class="s2">/</span><span class="si">%s</span><span class="s2">/pulp_user_metadata/&quot;</span>
+            <span class="o">%</span> <span class="p">(</span><span class="n">unit</span><span class="o">.</span><span class="n">content_type_id</span><span class="p">,</span> <span class="n">unit</span><span class="o">.</span><span class="n">unit_id</span><span class="p">),</span>
+        <span class="p">)</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request_executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_do_request</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;PUT&quot;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">unit</span><span class="o">.</span><span class="n">_usermeta</span>
+        <span class="p">)</span>
+
+        <span class="c1"># The Pulp API is defined as returning &#39;null&#39; so this should be a no-op,</span>
+        <span class="c1"># but to be extra sure we don&#39;t return anything unexpected, we&#39;ll force</span>
+        <span class="c1"># the return value to None.</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">f_map</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">out</span></div>
+
+    <span class="k">def</span> <span class="nf">_search_content_with_server_type_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">criteria</span><span class="p">,</span> <span class="n">server_type_ids</span><span class="p">):</span>
         <span class="n">prepared_search</span> <span class="o">=</span> <span class="n">search_for_criteria</span><span class="p">(</span><span class="n">criteria</span><span class="p">,</span> <span class="n">Unit</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">type_ids</span> <span class="o">=</span> <span class="n">prepared_search</span><span class="o">.</span><span class="n">type_ids</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">type_ids</span><span class="p">:</span>
@@ -266,8 +389,11 @@
             <span class="p">)</span>
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_search</span><span class="p">(</span>
-            <span class="n">Unit</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;content/units/</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">type_ids</span><span class="p">],</span> <span class="n">criteria</span><span class="o">=</span><span class="n">criteria</span>
-        <span class="p">)</span></div>
+            <span class="n">Unit</span><span class="p">,</span>
+            <span class="p">[</span><span class="s2">&quot;content/units/</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">type_ids</span><span class="p">],</span>
+            <span class="n">criteria</span><span class="o">=</span><span class="n">criteria</span><span class="p">,</span>
+            <span class="n">search_options</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;include_repos&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span>
+        <span class="p">)</span>
 
 <div class="viewcode-block" id="Client.search_distributor"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.Client.search_distributor">[docs]</a>    <span class="k">def</span> <span class="nf">search_distributor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">criteria</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Search the distributors matching the given criteria.</span>
@@ -287,6 +413,25 @@
 <span class="sd">        .. versionadded:: 2.1.0</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_search</span><span class="p">(</span><span class="n">Distributor</span><span class="p">,</span> <span class="s2">&quot;distributors&quot;</span><span class="p">,</span> <span class="n">criteria</span><span class="o">=</span><span class="n">criteria</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Client.search_task"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.Client.search_task">[docs]</a>    <span class="k">def</span> <span class="nf">search_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">criteria</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Search the tasks matching the given criteria.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            criteria (:class:`~pubtools.pulplib.Criteria`)</span>
+<span class="sd">                A criteria object used for this search.</span>
+<span class="sd">                If None, search for all tasks.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Future[:class:`~pubtools.pulplib.Page`]</span>
+<span class="sd">                A future representing the first page of results.</span>
+
+<span class="sd">                Each page will contain a collection of</span>
+<span class="sd">                :class:`~pubtools.pulplib.Task` objects.</span>
+
+<span class="sd">        .. versionadded:: 2.19.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_search</span><span class="p">(</span><span class="n">Task</span><span class="p">,</span> <span class="s2">&quot;tasks&quot;</span><span class="p">,</span> <span class="n">criteria</span><span class="o">=</span><span class="n">criteria</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_search</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -415,7 +560,7 @@
         <span class="c1"># We only support returning the ID at this time.</span>
         <span class="k">return</span> <span class="n">f_proxy</span><span class="p">(</span><span class="n">f_map</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">types</span><span class="p">:</span> <span class="nb">sorted</span><span class="p">([</span><span class="n">t</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">types</span><span class="p">])))</span></div>
 
-    <span class="k">def</span> <span class="nf">_do_upload_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">upload_id</span><span class="p">,</span> <span class="n">file_obj</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_do_upload_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">upload_id</span><span class="p">,</span> <span class="n">file_obj</span><span class="p">):</span>
         <span class="k">def</span> <span class="nf">do_next_upload</span><span class="p">(</span><span class="n">checksum</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
             <span class="n">data</span> <span class="o">=</span> <span class="n">file_obj</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_CHUNK_SIZE</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
@@ -434,11 +579,10 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">is_file_object</span><span class="p">:</span>
             <span class="n">file_obj</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_obj</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span>
 
-        <span class="n">LOG</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Uploading </span><span class="si">%s</span><span class="s2"> to Pulp&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
         <span class="n">upload_f</span> <span class="o">=</span> <span class="n">f_flat_map</span><span class="p">(</span><span class="n">f_return</span><span class="p">(),</span> <span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="n">do_next_upload</span><span class="p">(</span><span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(),</span> <span class="mi">0</span><span class="p">))</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_file_object</span><span class="p">:</span>
-            <span class="n">upload_f</span><span class="o">.</span><span class="n">add_done_callback</span><span class="p">(</span><span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="n">file_obj</span><span class="o">.</span><span class="n">close</span><span class="p">())</span>
+        <span class="n">upload_f</span><span class="o">.</span><span class="n">add_done_callback</span><span class="p">(</span><span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="n">file_obj</span><span class="o">.</span><span class="n">close</span><span class="p">())</span>
+
         <span class="k">return</span> <span class="n">upload_f</span>
 
     <span class="k">def</span> <span class="nf">_publish_repository</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">repo</span><span class="p">,</span> <span class="n">distributors_with_config</span><span class="p">):</span>
@@ -470,14 +614,36 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_do_request</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">body</span>
         <span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_do_unassociate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">repo_id</span><span class="p">,</span> <span class="n">type_ids</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_do_associate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">src_repo_id</span><span class="p">,</span> <span class="n">dest_repo_id</span><span class="p">,</span> <span class="n">criteria</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_url</span><span class="p">,</span> <span class="s2">&quot;pulp/api/v2/repositories/</span><span class="si">%s</span><span class="s2">/actions/associate/&quot;</span> <span class="o">%</span> <span class="n">dest_repo_id</span>
+        <span class="p">)</span>
+
+        <span class="n">pulp_search</span> <span class="o">=</span> <span class="n">search_for_criteria</span><span class="p">(</span><span class="n">criteria</span><span class="p">,</span> <span class="n">type_hint</span><span class="o">=</span><span class="n">Unit</span><span class="p">,</span> <span class="n">type_ids_accum</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="n">body</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;source_repo_id&quot;</span><span class="p">:</span> <span class="n">src_repo_id</span><span class="p">,</span> <span class="s2">&quot;criteria&quot;</span><span class="p">:</span> <span class="p">{}}</span>
+        <span class="k">if</span> <span class="n">pulp_search</span><span class="o">.</span><span class="n">type_ids</span><span class="p">:</span>
+            <span class="n">body</span><span class="p">[</span><span class="s2">&quot;criteria&quot;</span><span class="p">][</span><span class="s2">&quot;type_ids&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pulp_search</span><span class="o">.</span><span class="n">type_ids</span>
+        <span class="k">if</span> <span class="n">pulp_search</span><span class="o">.</span><span class="n">filters</span><span class="p">:</span>
+            <span class="n">body</span><span class="p">[</span><span class="s2">&quot;criteria&quot;</span><span class="p">][</span><span class="s2">&quot;filters&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="n">pulp_search</span><span class="o">.</span><span class="n">filters</span><span class="p">}</span>
+
+        <span class="n">LOG</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Submitting </span><span class="si">%s</span><span class="s2"> associate: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">body</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_task_executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_do_request</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">body</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_do_unassociate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">repo_id</span><span class="p">,</span> <span class="n">criteria</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="n">url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_url</span><span class="p">,</span> <span class="s2">&quot;pulp/api/v2/repositories/</span><span class="si">%s</span><span class="s2">/actions/unassociate/&quot;</span> <span class="o">%</span> <span class="n">repo_id</span>
         <span class="p">)</span>
 
-        <span class="n">body</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">if</span> <span class="n">type_ids</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">body</span><span class="p">[</span><span class="s2">&quot;type_ids&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">type_ids</span>
+        <span class="c1"># use type hint=Unit so that if type_ids are the goal here</span>
+        <span class="c1"># then we will get back a properly prepared PulpSearch with</span>
+        <span class="c1"># a populated type_ids field</span>
+        <span class="n">pulp_search</span> <span class="o">=</span> <span class="n">search_for_criteria</span><span class="p">(</span><span class="n">criteria</span><span class="p">,</span> <span class="n">type_hint</span><span class="o">=</span><span class="n">Unit</span><span class="p">,</span> <span class="n">type_ids_accum</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="n">body</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;criteria&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;type_ids&quot;</span><span class="p">:</span> <span class="n">pulp_search</span><span class="o">.</span><span class="n">type_ids</span><span class="p">}}</span>
 
         <span class="n">LOG</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Submitting </span><span class="si">%s</span><span class="s2"> unassociate: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">body</span><span class="p">)</span>
 
@@ -614,15 +780,20 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_do_request</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;PUT&quot;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span>
         <span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_do_import</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">repo_id</span><span class="p">,</span> <span class="n">upload_id</span><span class="p">,</span> <span class="n">unit_type_id</span><span class="p">,</span> <span class="n">unit_key</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_do_import</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">repo_id</span><span class="p">,</span> <span class="n">upload_id</span><span class="p">,</span> <span class="n">unit_type_id</span><span class="p">,</span> <span class="n">unit_key</span><span class="p">,</span> <span class="n">unit_metadata</span><span class="o">=</span><span class="kc">None</span>
+    <span class="p">):</span>
         <span class="n">url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_url</span><span class="p">,</span> <span class="s2">&quot;pulp/api/v2/repositories/</span><span class="si">%s</span><span class="s2">/actions/import_upload/&quot;</span> <span class="o">%</span> <span class="n">repo_id</span>
         <span class="p">)</span>
+
+        <span class="n">unit_metadata</span> <span class="o">=</span> <span class="n">unit_metadata</span> <span class="ow">or</span> <span class="p">{}</span>
 
         <span class="n">body</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s2">&quot;unit_type_id&quot;</span><span class="p">:</span> <span class="n">unit_type_id</span><span class="p">,</span>
             <span class="s2">&quot;upload_id&quot;</span><span class="p">:</span> <span class="n">upload_id</span><span class="p">,</span>
             <span class="s2">&quot;unit_key&quot;</span><span class="p">:</span> <span class="n">unit_key</span><span class="p">,</span>
+            <span class="s2">&quot;unit_metadata&quot;</span><span class="p">:</span> <span class="n">unit_metadata</span><span class="p">,</span>
         <span class="p">}</span>
 
         <span class="n">LOG</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Importing contents to repo </span><span class="si">%s</span><span class="s2"> with upload id </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">repo_id</span><span class="p">,</span> <span class="n">upload_id</span><span class="p">)</span>
@@ -691,9 +862,16 @@
 
 
 <h3>Navigation</h3>
-<p class="caption"><span class="caption-text">Contents:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../../api-reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../api/client.html">API: client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../api/pulpcore.html">API: core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../api/yum.html">API: yum</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../api/files.html">API: files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../api/containers.html">API: containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../api/maintenance.html">API: maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../api/searching.html">API: searching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../api/testing.html">API: testing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../logging.html">Logging</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../schema.html">Schemas</a></li>
 </ul>
@@ -706,7 +884,7 @@
     
     <li class="toctree-l1"><a href="https://pypi.org/project/pubtools-pulplib">PyPI</a></li>
     
-    <li class="toctree-l1"><a href="genindex.html">Index</a></li>
+    <li class="toctree-l1"><a href="https://release-engineering.github.io/pubtools-pulplib/genindex.html">Index</a></li>
     
 </ul>
 <div class="relations">
@@ -722,7 +900,7 @@
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../../../../../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -744,7 +922,7 @@
       &copy;2019, Red Hat.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.4.0</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
     </div>

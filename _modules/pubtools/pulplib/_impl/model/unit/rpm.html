@@ -6,9 +6,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>pubtools.pulplib._impl.model.unit.rpm &#8212; pubtools-pulplib  documentation</title>
-    <link rel="stylesheet" href="../../../../../../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../../../../../../_static/alabaster.css" type="text/css" />
-    <script id="documentation_options" data-url_root="../../../../../../" src="../../../../../../_static/documentation_options.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../../../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../../../_static/alabaster.css" />
+    <script data-url_root="../../../../../../" id="documentation_options" src="../../../../../../_static/documentation_options.js"></script>
     <script src="../../../../../../_static/jquery.js"></script>
     <script src="../../../../../../_static/underscore.js"></script>
     <script src="../../../../../../_static/doctools.js"></script>
@@ -31,17 +31,68 @@
           <div class="body" role="main">
             
   <h1>Source code for pubtools.pulplib._impl.model.unit.rpm</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span> <span class="nn">.base</span> <span class="kn">import</span> <span class="n">Unit</span><span class="p">,</span> <span class="n">unit_type</span>
+<span></span><span class="kn">import</span> <span class="nn">datetime</span>
+
+<span class="kn">from</span> <span class="nn">pubtools.pulplib._impl.model.validate</span> <span class="kn">import</span> <span class="n">optional_list_of</span>
+<span class="kn">from</span> <span class="nn">.base</span> <span class="kn">import</span> <span class="n">Unit</span><span class="p">,</span> <span class="n">unit_type</span><span class="p">,</span> <span class="n">schemaless_init</span>
 
 <span class="kn">from</span> <span class="nn">..attr</span> <span class="kn">import</span> <span class="n">pulp_attrib</span>
 <span class="kn">from</span> <span class="nn">...</span> <span class="kn">import</span> <span class="n">compat_attr</span> <span class="k">as</span> <span class="n">attr</span>
-<span class="kn">from</span> <span class="nn">..frozenlist</span> <span class="kn">import</span> <span class="n">frozenlist_or_none_converter</span>
+<span class="kn">from</span> <span class="nn">..convert</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">frozenlist_or_none_converter</span><span class="p">,</span>
+    <span class="n">frozenlist_or_none_sorted_converter</span><span class="p">,</span>
+    <span class="n">tolerant_timestamp</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">..validate</span> <span class="kn">import</span> <span class="n">optional_str</span><span class="p">,</span> <span class="n">instance_of</span>
+
+
+<div class="viewcode-block" id="RpmDependency"><a class="viewcode-back" href="../../../../../../api/yum.html#pubtools.pulplib.RpmDependency">[docs]</a><span class="nd">@attr</span><span class="o">.</span><span class="n">s</span><span class="p">(</span><span class="n">kw_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">RpmDependency</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    An RPM dependency entry within :meth:`~RpmUnit.requires` and :meth:`~RpmUnit.provides`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;name&quot;</span><span class="p">)</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A name of dependency - it can be name of rpm package, shared library, scriplet or </span>
+<span class="sd">    another name of dependency.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">version</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;version&quot;</span><span class="p">)</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Version of this RPM dependency.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">release</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;release&quot;</span><span class="p">)</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Release of this RPM dependency.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">epoch</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;epoch&quot;</span><span class="p">)</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Epoch of this RPM dependency.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">flags</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;flags&quot;</span><span class="p">)</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Flags representing relation to version of this RPM dependency.</span>
+<span class="sd">    Can be one of GT (greater than), EQ (equal), LT (less than), GE (greater than or equal) and</span>
+<span class="sd">    LE (less than or equal).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_from_data</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="c1"># Convert from raw list/dict as provided in Pulp responses into model.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">_from_data</span><span class="p">(</span><span class="n">elem</span><span class="p">)</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">schemaless_init</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span></div>
 
 
 <span class="c1"># Note: Pulp2 models RPM and SRPM as separate unit types,</span>
 <span class="c1"># but there&#39;s actually no difference between their fields at all.</span>
 <span class="c1"># This separation doesn&#39;t seem useful, so we let one class handle both.</span>
-<div class="viewcode-block" id="RpmUnit"><a class="viewcode-back" href="../../../../../../api/model.html#pubtools.pulplib.RpmUnit">[docs]</a><span class="nd">@unit_type</span><span class="p">(</span><span class="s2">&quot;rpm&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="RpmUnit"><a class="viewcode-back" href="../../../../../../api/yum.html#pubtools.pulplib.RpmUnit">[docs]</a><span class="nd">@unit_type</span><span class="p">(</span><span class="s2">&quot;rpm&quot;</span><span class="p">)</span>
 <span class="nd">@unit_type</span><span class="p">(</span><span class="s2">&quot;srpm&quot;</span><span class="p">)</span>
 <span class="nd">@attr</span><span class="o">.</span><span class="n">s</span><span class="p">(</span><span class="n">kw_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span> <span class="nc">RpmUnit</span><span class="p">(</span><span class="n">Unit</span><span class="p">):</span>
@@ -50,31 +101,31 @@
 <span class="sd">    .. versionadded:: 1.5.0</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">name</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;name&quot;</span><span class="p">)</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="n">unit_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="sd">&quot;&quot;&quot;The name of this RPM.</span>
 
 <span class="sd">    Example: the name of bash-5.0.7-1.fc30.x86_64.rpm is &quot;bash&quot;.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">version</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;version&quot;</span><span class="p">)</span>
+    <span class="n">version</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="n">unit_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="sd">&quot;&quot;&quot;The version of this RPM.</span>
 
 <span class="sd">    Example: the version of bash-5.0.7-1.fc30.x86_64.rpm is &quot;5.0.7&quot;.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">release</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;release&quot;</span><span class="p">)</span>
+    <span class="n">release</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;release&quot;</span><span class="p">,</span> <span class="n">unit_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="sd">&quot;&quot;&quot;The release of this RPM.</span>
 
 <span class="sd">    Example: the release of bash-5.0.7-1.fc30.x86_64.rpm is &quot;1.fc30&quot;.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">arch</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;arch&quot;</span><span class="p">)</span>
+    <span class="n">arch</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;arch&quot;</span><span class="p">,</span> <span class="n">unit_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="sd">&quot;&quot;&quot;The architecture of this RPM.</span>
 
 <span class="sd">    Example: the arch of bash-5.0.7-1.fc30.x86_64.rpm is &quot;x86_64&quot;.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">epoch</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="s2">&quot;0&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;epoch&quot;</span><span class="p">)</span>
+    <span class="n">epoch</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="s2">&quot;0&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;epoch&quot;</span><span class="p">,</span> <span class="n">unit_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="sd">&quot;&quot;&quot;The epoch of this RPM (most commonly &quot;0&quot;).</span>
 
 <span class="sd">    Example: the epoch of 3:bash-5.0.7-1.fc30.x86_64.rpm is &quot;3&quot;.</span>
@@ -85,6 +136,12 @@
 
 <span class="sd">    .. seealso::</span>
 <span class="sd">        :meth:`~pubtools.pulplib.Repository.signing_keys`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">filename</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;filename&quot;</span><span class="p">)</span>
+    <span class="sd">&quot;&quot;&quot;Filename of this RPM.</span>
+<span class="sd">    </span>
+<span class="sd">    Example: mod_security_crs-3.3.0-2.el8.noarch.rpm</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">sourcerpm</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;sourcerpm&quot;</span><span class="p">)</span>
@@ -115,8 +172,13 @@
     <span class="n">sha256sum</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span>
         <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
-        <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;checksums.sha256&quot;</span><span class="p">,</span>
+        <span class="c1"># Use &#39;checksum&#39; field because it&#39;s indexed and therefore much faster than</span>
+        <span class="c1"># searching for checksums.sha256.</span>
+        <span class="c1"># It&#39;s safe since this is always stored as a copy of the sha256 checksum, see:</span>
+        <span class="c1"># https://github.com/pulp/pulp_rpm/blob/69759d0fb9a16c0a47b1f49c78f6712e650912e1/plugins/pulp_rpm/plugins/importers/yum/upload.py#L436</span>
+        <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;checksum&quot;</span><span class="p">,</span>
         <span class="n">converter</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">if</span> <span class="n">s</span> <span class="k">else</span> <span class="n">s</span><span class="p">,</span>
+        <span class="n">unit_key</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="sd">&quot;&quot;&quot;SHA256 checksum of this RPM, as a hex string.&quot;&quot;&quot;</span>
 
@@ -124,15 +186,83 @@
         <span class="n">default</span><span class="o">=</span><span class="s2">&quot;rpm&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;_content_type_id&quot;</span>
     <span class="p">)</span>
 
+    <span class="n">cdn_path</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+        <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;pulp_user_metadata.cdn_path&quot;</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">validator</span><span class="o">=</span><span class="n">optional_str</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="sd">&quot;&quot;&quot;A path, relative to the CDN root, from which this RPM can be downloaded</span>
+<span class="sd">    once published.</span>
+
+<span class="sd">    This path will not point to any specific repository. However, the RPM must</span>
+<span class="sd">    have been published via at least one repository before this path can be</span>
+<span class="sd">    accessed.</span>
+
+<span class="sd">    This field is **mutable** and may be set by</span>
+<span class="sd">    :meth:`~YumRepository.upload_rpm` or</span>
+<span class="sd">    :meth:`~Client.update_content`.</span>
+
+<span class="sd">    .. versionadded:: 2.20.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">cdn_published</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span>
+        <span class="nb">type</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">,</span>
+        <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;pulp_user_metadata.cdn_published&quot;</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">converter</span><span class="o">=</span><span class="n">tolerant_timestamp</span><span class="p">,</span>
+        <span class="n">validator</span><span class="o">=</span><span class="n">instance_of</span><span class="p">((</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">))),</span>
+    <span class="p">)</span>
+    <span class="sd">&quot;&quot;&quot;Approximate :class:`~datetime.datetime` in UTC at which this RPM first</span>
+<span class="sd">    became available at ``cdn_path``, or ``None`` if this information is</span>
+<span class="sd">    unavailable.</span>
+
+<span class="sd">    This field is **mutable** and may be set by</span>
+<span class="sd">    :meth:`~YumRepository.upload_rpm` or</span>
+<span class="sd">    :meth:`~Client.update_content`.</span>
+
+<span class="sd">    .. versionadded:: 2.20.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="n">repository_memberships</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span>
         <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="nb">type</span><span class="o">=</span><span class="nb">list</span><span class="p">,</span>
-        <span class="n">converter</span><span class="o">=</span><span class="n">frozenlist_or_none_converter</span><span class="p">,</span>
+        <span class="n">converter</span><span class="o">=</span><span class="n">frozenlist_or_none_sorted_converter</span><span class="p">,</span>
         <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;repository_memberships&quot;</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="sd">&quot;&quot;&quot;IDs of repositories containing the unit, or ``None`` if this information is unavailable.</span>
 
 <span class="sd">    .. versionadded:: 2.6.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">unit_id</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;_id&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="sd">&quot;&quot;&quot;The unique ID of this unit, if known.</span>
+
+<span class="sd">    .. versionadded:: 2.20.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">requires</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">list</span><span class="p">,</span>
+        <span class="n">converter</span><span class="o">=</span><span class="n">frozenlist_or_none_converter</span><span class="p">,</span>
+        <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;requires&quot;</span><span class="p">,</span>
+        <span class="n">validator</span><span class="o">=</span><span class="n">optional_list_of</span><span class="p">(</span><span class="n">RpmDependency</span><span class="p">),</span>
+        <span class="n">pulp_py_converter</span><span class="o">=</span><span class="n">RpmDependency</span><span class="o">.</span><span class="n">_from_data</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    List of dependencies that this RPM requires or ``None`` if this information is unavailable.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">provides</span> <span class="o">=</span> <span class="n">pulp_attrib</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">list</span><span class="p">,</span>
+        <span class="n">converter</span><span class="o">=</span><span class="n">frozenlist_or_none_converter</span><span class="p">,</span>
+        <span class="n">pulp_field</span><span class="o">=</span><span class="s2">&quot;provides&quot;</span><span class="p">,</span>
+        <span class="n">validator</span><span class="o">=</span><span class="n">optional_list_of</span><span class="p">(</span><span class="n">RpmDependency</span><span class="p">),</span>
+        <span class="n">pulp_py_converter</span><span class="o">=</span><span class="n">RpmDependency</span><span class="o">.</span><span class="n">_from_data</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    List of capabilities that this RPM provides or ``None`` if this information is unavailable.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="nd">@md5sum</span><span class="o">.</span><span class="n">validator</span>
@@ -168,9 +298,16 @@
 
 
 <h3>Navigation</h3>
-<p class="caption"><span class="caption-text">Contents:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../../../api-reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../api/client.html">API: client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../api/pulpcore.html">API: core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../api/yum.html">API: yum</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../api/files.html">API: files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../api/containers.html">API: containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../api/maintenance.html">API: maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../api/searching.html">API: searching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../api/testing.html">API: testing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../../logging.html">Logging</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../../schema.html">Schemas</a></li>
 </ul>
@@ -183,7 +320,7 @@
     
     <li class="toctree-l1"><a href="https://pypi.org/project/pubtools-pulplib">PyPI</a></li>
     
-    <li class="toctree-l1"><a href="genindex.html">Index</a></li>
+    <li class="toctree-l1"><a href="https://release-engineering.github.io/pubtools-pulplib/genindex.html">Index</a></li>
     
 </ul>
 <div class="relations">
@@ -199,7 +336,7 @@
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../../../../../../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -221,7 +358,7 @@
       &copy;2019, Red Hat.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.4.0</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
     </div>

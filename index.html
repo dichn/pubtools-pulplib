@@ -4,17 +4,18 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>pubtools-pulplib &#8212; pubtools-pulplib  documentation</title>
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
-    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
     <script src="_static/jquery.js"></script>
     <script src="_static/underscore.js"></script>
     <script src="_static/doctools.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="API Reference" href="api-reference.html" />
+    <link rel="next" title="API: client" href="api/client.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
   
@@ -31,36 +32,25 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="pubtools-pulplib">
+  <section id="pubtools-pulplib">
 <h1>pubtools-pulplib<a class="headerlink" href="#pubtools-pulplib" title="Permalink to this headline">¶</a></h1>
 <p>A Pulp library for publishing tools.</p>
 <div class="toctree-wrapper compound">
-<p class="caption"><span class="caption-text">Contents:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="api-reference.html">API Reference</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="api/client.html">Client</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/searching.html">Searching</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/maintenance.html">Maintenance Mode</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/model.html">Pulp objects</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/testing.html">Testing</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="logging.html">Logging</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="logging.html#waiting-on-pulp">Waiting on Pulp</a></li>
-<li class="toctree-l2"><a class="reference internal" href="logging.html#task-state-changes">Task state changes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="logging.html#retrying">Retrying</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="schema.html">Schemas</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="schema.html#repository">Repository</a></li>
-<li class="toctree-l2"><a class="reference internal" href="schema.html#task">Task</a></li>
-<li class="toctree-l2"><a class="reference internal" href="schema.html#unit">Unit</a></li>
-<li class="toctree-l2"><a class="reference internal" href="schema.html#maintenance">Maintenance</a></li>
-</ul>
-</li>
+<li class="toctree-l1"><a class="reference internal" href="api/client.html">API: client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/pulpcore.html">API: core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/yum.html">API: yum</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/files.html">API: files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/containers.html">API: containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/maintenance.html">API: maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/searching.html">API: searching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/testing.html">API: testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="logging.html">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="schema.html">Schemas</a></li>
 </ul>
 </div>
-<div class="section" id="quick-start">
+<section id="quick-start">
 <h2>Quick Start<a class="headerlink" href="#quick-start" title="Permalink to this headline">¶</a></h2>
 <p>Install pubtools-pulplib from PyPI:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">pubtools</span><span class="o">-</span><span class="n">pulplib</span>
@@ -71,19 +61,19 @@ the desired methods to perform actions on Pulp.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pubtools.pulplib</span> <span class="kn">import</span> <span class="n">Client</span>
 
 <span class="c1"># Make a client pointing at this Pulp server</span>
-<span class="n">client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="s1">&#39;https://pulp.example.com/&#39;</span><span class="p">,</span> <span class="n">auth</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;admin&#39;</span><span class="p">,</span> <span class="s1">&#39;some-password&#39;</span><span class="p">))</span>
+<span class="k">with</span> <span class="n">Client</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="s1">&#39;https://pulp.example.com/&#39;</span><span class="p">,</span> <span class="n">auth</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;admin&#39;</span><span class="p">,</span> <span class="s1">&#39;some-password&#39;</span><span class="p">))</span> <span class="k">as</span> <span class="n">client</span><span class="p">:</span>
 
-<span class="c1"># Get a particular repo by ID.</span>
-<span class="c1"># All methods return Future instances; .result() blocks</span>
-<span class="n">repo</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get_repository</span><span class="p">(</span><span class="s1">&#39;zoo&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+    <span class="c1"># Get a particular repo by ID.</span>
+    <span class="c1"># All methods return Future instances; .result() blocks</span>
+    <span class="n">repo</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get_repository</span><span class="p">(</span><span class="s1">&#39;zoo&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
 
-<span class="c1"># Pulp objects have relevant methods, e.g. publish().</span>
-<span class="c1"># Returned future may encapsulate one or more Pulp tasks.</span>
-<span class="n">publish</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">publish</span><span class="p">()</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+    <span class="c1"># Pulp objects have relevant methods, e.g. publish().</span>
+    <span class="c1"># Returned future may encapsulate one or more Pulp tasks.</span>
+    <span class="n">publish</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">publish</span><span class="p">()</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
 </pre></div>
 </div>
-</div>
-</div>
+</section>
+</section>
 
 
           </div>
@@ -106,9 +96,16 @@ the desired methods to perform actions on Pulp.</p>
 
 
 <h3>Navigation</h3>
-<p class="caption"><span class="caption-text">Contents:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="api-reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/client.html">API: client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/pulpcore.html">API: core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/yum.html">API: yum</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/files.html">API: files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/containers.html">API: containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/maintenance.html">API: maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/searching.html">API: searching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/testing.html">API: testing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="logging.html">Logging</a></li>
 <li class="toctree-l1"><a class="reference internal" href="schema.html">Schemas</a></li>
 </ul>
@@ -121,14 +118,14 @@ the desired methods to perform actions on Pulp.</p>
     
     <li class="toctree-l1"><a href="https://pypi.org/project/pubtools-pulplib">PyPI</a></li>
     
-    <li class="toctree-l1"><a href="genindex.html">Index</a></li>
+    <li class="toctree-l1"><a href="https://release-engineering.github.io/pubtools-pulplib/genindex.html">Index</a></li>
     
 </ul>
 <div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="#">Documentation overview</a><ul>
-      <li>Next: <a href="api-reference.html" title="next chapter">API Reference</a></li>
+      <li>Next: <a href="api/client.html" title="next chapter">API: client</a></li>
   </ul></li>
 </ul>
 </div>
@@ -136,7 +133,7 @@ the desired methods to perform actions on Pulp.</p>
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -158,7 +155,7 @@ the desired methods to perform actions on Pulp.</p>
       &copy;2019, Red Hat.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.4.0</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |
