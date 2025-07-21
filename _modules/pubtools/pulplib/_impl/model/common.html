@@ -1,17 +1,15 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>pubtools.pulplib._impl.model.common &#8212; pubtools-pulplib  documentation</title>
-    <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../../../../_static/alabaster.css" />
-    <script data-url_root="../../../../../" id="documentation_options" src="../../../../../_static/documentation_options.js"></script>
-    <script src="../../../../../_static/jquery.js"></script>
-    <script src="../../../../../_static/underscore.js"></script>
-    <script src="../../../../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=6625fa76" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/alabaster.css?v=1fc5d657" />
+    <script data-url_root="../../../../../" id="documentation_options" src="../../../../../_static/documentation_options.js?v=b3ba4146"></script>
+    <script src="../../../../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../../../../_static/sphinx_highlight.js?v=4825356b"></script>
     <link rel="index" title="Index" href="../../../../../genindex.html" />
     <link rel="search" title="Search" href="../../../../../search.html" />
    
@@ -31,35 +29,34 @@
           <div class="body" role="main">
             
   <h1>Source code for pubtools.pulplib._impl.model.common</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">import</span> <span class="nn">datetime</span>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
 
-<span class="kn">import</span> <span class="nn">jsonschema</span>
-<span class="kn">import</span> <span class="nn">six</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jsonschema</span>
 
-<span class="kn">from</span> <span class="nn">more_executors.futures</span> <span class="kn">import</span> <span class="n">f_map</span><span class="p">,</span> <span class="n">f_proxy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">more_executors.futures</span><span class="w"> </span><span class="kn">import</span> <span class="n">f_map</span><span class="p">,</span> <span class="n">f_proxy</span>
 
-<span class="kn">from</span> <span class="nn">pubtools.pulplib._impl</span> <span class="kn">import</span> <span class="n">compat_attr</span> <span class="k">as</span> <span class="n">attr</span>
-<span class="kn">from</span> <span class="nn">pubtools.pulplib._impl.util</span> <span class="kn">import</span> <span class="n">lookup</span><span class="p">,</span> <span class="n">dict_put</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pubtools.pulplib._impl</span><span class="w"> </span><span class="kn">import</span> <span class="n">compat_attr</span> <span class="k">as</span> <span class="n">attr</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pubtools.pulplib._impl.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">lookup</span><span class="p">,</span> <span class="n">dict_put</span>
 
-<span class="kn">from</span> <span class="nn">.attr</span> <span class="kn">import</span> <span class="n">PULP2_FIELD</span>
-<span class="kn">from</span> <span class="nn">.convert</span> <span class="kn">import</span> <span class="n">get_converter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.attr</span><span class="w"> </span><span class="kn">import</span> <span class="n">PULP2_FIELD</span><span class="p">,</span> <span class="n">PY_PULP2_CONVERTER</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.convert</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_converter</span>
 
 <span class="n">LOG</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;pubtools.pulplib&quot;</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="DetachedException"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.DetachedException">[docs]</a><span class="k">class</span> <span class="nc">DetachedException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;If an operation is attempted on a Pulp object which requires an active client,</span>
+<div class="viewcode-block" id="DetachedException"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.DetachedException">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">DetachedException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;If an operation is attempted on a Pulp object which requires an active client,</span>
 <span class="sd">    and the object is not attached to any client, this exception is raised.</span>
 <span class="sd">    &quot;&quot;&quot;</span></div>
 
 
-<div class="viewcode-block" id="InvalidDataException"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.InvalidDataException">[docs]</a><span class="k">class</span> <span class="nc">InvalidDataException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Raised if raw Pulp data appears to be invalid (i.e. not matching expected schema).&quot;&quot;&quot;</span></div>
+<div class="viewcode-block" id="InvalidDataException"><a class="viewcode-back" href="../../../../../api/client.html#pubtools.pulplib.InvalidDataException">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">InvalidDataException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised if raw Pulp data appears to be invalid (i.e. not matching expected schema).&quot;&quot;&quot;</span></div>
 
 
-<div class="viewcode-block" id="PulpObject"><a class="viewcode-back" href="../../../../../api/pulpcore.html#pubtools.pulplib.PulpObject">[docs]</a><span class="k">class</span> <span class="nc">PulpObject</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Base class for all modeled Pulp objects.</span>
+<div class="viewcode-block" id="PulpObject"><a class="viewcode-back" href="../../../../../api/pulpcore.html#pubtools.pulplib.PulpObject">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">PulpObject</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for all modeled Pulp objects.</span>
 
 <span class="sd">    Instances of PulpObject subclasses may be obtained by get and search methods</span>
 <span class="sd">    on :class:`~pubtools.pulplib.Client`, or may be instantiated directly by calls</span>
@@ -82,9 +79,11 @@
     <span class="c1"># validate anything.</span>
     <span class="n">_SCHEMA</span> <span class="o">=</span> <span class="kc">False</span>
 
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
 <div class="viewcode-block" id="PulpObject.from_data"><a class="viewcode-back" href="../../../../../api/pulpcore.html#pubtools.pulplib.PulpObject.from_data">[docs]</a>    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">from_data</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Obtain a detached instance using data obtained from Pulp.</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_data</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Obtain a detached instance using data obtained from Pulp.</span>
 
 <span class="sd">        This method is provided so that callers who are not using</span>
 <span class="sd">        :class:`~pubtools.pulplib.Client` may make use of the Pulp object classes.</span>
@@ -134,10 +133,10 @@
             <span class="p">)</span>
 
             <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">.from_data invoked with invalid Pulp data&quot;</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span>
-            <span class="n">six</span><span class="o">.</span><span class="n">raise_from</span><span class="p">(</span><span class="n">InvalidDataException</span><span class="p">(</span><span class="n">msg</span><span class="p">),</span> <span class="n">error</span><span class="p">)</span></div>
+            <span class="k">raise</span> <span class="n">InvalidDataException</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span></div>
 
-    <span class="k">def</span> <span class="nf">_to_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Inverse of from_data: serialize a model object back to native Pulp form.</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_to_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Inverse of from_data: serialize a model object back to native Pulp form.</span>
 
 <span class="sd">        This method is currently intended for internal use only.</span>
 
@@ -157,15 +156,12 @@
 
             <span class="n">python_value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 
-            <span class="c1"># Note: in theory we should also get and use PY_PULP2_CONVERTER</span>
-            <span class="c1"># here if that was set on the metadata. It&#39;s not currently</span>
-            <span class="c1"># implemented because ErratumUnit is the only type for which</span>
-            <span class="c1"># this code can be reached from public API, and it has no fields</span>
-            <span class="c1"># which need a custom converter, so it would be dead code.</span>
-            <span class="c1"># Implement it when you need it!</span>
-            <span class="c1">#</span>
-            <span class="c1"># For now, conversions supported by PulpObject are sufficient.</span>
-            <span class="n">pulp_value</span> <span class="o">=</span> <span class="n">PulpObject</span><span class="o">.</span><span class="n">_any_to_data</span><span class="p">(</span><span class="n">python_value</span><span class="p">)</span>
+            <span class="c1"># If the field has defined a specific PY_PULP2_CONVERTER, it&#39;s</span>
+            <span class="c1"># used here. Otherwise the generic converter is used.</span>
+            <span class="n">py_pulp_converter</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="n">PY_PULP2_CONVERTER</span><span class="p">,</span> <span class="n">PulpObject</span><span class="o">.</span><span class="n">_any_to_data</span>
+            <span class="p">)</span>
+            <span class="n">pulp_value</span> <span class="o">=</span> <span class="n">py_pulp_converter</span><span class="p">(</span><span class="n">python_value</span><span class="p">)</span>
 
             <span class="c1"># Put converted value into the output dict:</span>
             <span class="c1"># This may create nested dicts if needed, e.g. if</span>
@@ -176,8 +172,8 @@
         <span class="k">return</span> <span class="n">out</span>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">_any_to_data</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Like the instance method _to_data, but also handles non-PulpObject values.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_any_to_data</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Like the instance method _to_data, but also handles non-PulpObject values.&quot;&quot;&quot;</span>
 
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
             <span class="c1"># Lists of objects are converted recursively.</span>
@@ -196,7 +192,7 @@
         <span class="k">return</span> <span class="n">value</span>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">_data_to_init_args</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_data_to_init_args</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
         <span class="c1"># maps from raw Pulp dict to a kwargs dict used to initialize</span>
         <span class="c1"># a new object of this class.</span>
         <span class="c1">#</span>
@@ -216,28 +212,52 @@
                     <span class="n">value</span> <span class="o">=</span> <span class="n">converter</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
                     <span class="n">out</span><span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
 
-        <span class="k">return</span> <span class="n">out</span></div>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># We provide a custom repr with one difference from the one generated</span>
+        <span class="c1"># by attrs:</span>
+        <span class="c1"># - The attrs repr includes all attributes</span>
+        <span class="c1"># - Ours includes only the attributes with non-default values</span>
+        <span class="c1"># Since we have a lot of optional attributes which are typically left</span>
+        <span class="c1"># at their default values, this helps make repr much less verbose and</span>
+        <span class="c1"># noisy for us.</span>
+        <span class="n">class_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+
+        <span class="n">fields</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">fields</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">)</span>
+        <span class="n">kv</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">repr</span><span class="p">:</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span>
+                <span class="n">default</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">default</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">attr</span><span class="o">.</span><span class="n">NOTHING</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">value</span> <span class="o">!=</span> <span class="n">default</span><span class="p">:</span>
+                    <span class="n">kv</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">(</span><span class="si">{1}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">class_name</span><span class="p">,</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;=&quot;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="ow">in</span> <span class="n">kv</span><span class="p">])</span>
+        <span class="p">)</span></div>
 
 
-<span class="nd">@attr</span><span class="o">.</span><span class="n">s</span><span class="p">(</span><span class="n">kw_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span> <span class="nc">WithClient</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="nd">@attr</span><span class="o">.</span><span class="n">s</span><span class="p">(</span><span class="n">kw_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">WithClient</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="c1"># A mixin for objects holding a private reference to client.</span>
 
     <span class="n">_client</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">init</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="nb">repr</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">cmp</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="nb">hash</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_set_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_set_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="s2">&quot;_client&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">client</span>
 
 
-<span class="k">class</span> <span class="nc">Deletable</span><span class="p">(</span><span class="n">WithClient</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Deletable</span><span class="p">(</span><span class="n">WithClient</span><span class="p">):</span>
     <span class="c1"># A mixin for objects representing deletable resources.</span>
 
-    <span class="k">def</span> <span class="nf">__detach</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">retval</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">__detach</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">retval</span><span class="p">):</span>
         <span class="n">LOG</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Detaching </span><span class="si">%s</span><span class="s2"> after successful delete&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_set_client</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">retval</span>
 
-    <span class="k">def</span> <span class="nf">_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource_type</span><span class="p">,</span> <span class="n">resource_id</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource_type</span><span class="p">,</span> <span class="n">resource_id</span><span class="p">):</span>
         <span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">client</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">DetachedException</span><span class="p">()</span>
@@ -245,6 +265,18 @@
         <span class="n">delete_f</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">_delete_resource</span><span class="p">(</span><span class="n">resource_type</span><span class="p">,</span> <span class="n">resource_id</span><span class="p">)</span>
         <span class="n">delete_f</span> <span class="o">=</span> <span class="n">f_map</span><span class="p">(</span><span class="n">delete_f</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__detach</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">f_proxy</span><span class="p">(</span><span class="n">delete_f</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">schemaless_init</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+    <span class="c1"># Construct and return an instance of (attrs-using) cls from</span>
+    <span class="c1"># pulp data, where data in pulp has no schema at all (and hence</span>
+    <span class="c1"># every field could possibly be missing).</span>
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="n">fld</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">fld</span> <span class="ow">in</span> <span class="n">attr</span><span class="o">.</span><span class="n">fields</span><span class="p">(</span><span class="bp">cls</span><span class="p">)]:</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </pre></div>
 
           </div>
@@ -310,7 +342,7 @@
     </form>
     </div>
 </div>
-<script>$('#searchbox').show(0);</script>
+<script>document.getElementById('searchbox').style.display = "block"</script>
 
 
 
@@ -327,8 +359,8 @@
       &copy;2019, Red Hat.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.4.0</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.1.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
       
     </div>
 
